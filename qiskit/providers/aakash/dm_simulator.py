@@ -50,15 +50,16 @@ from matplotlib import cm
 from qiskit.util import local_hardware_info
 from qiskit.providers.models import QasmBackendConfiguration
 from qiskit.result import Result
-from qiskit.providers import BaseBackend
-from qiskit.providers.basicaer.basicaerjob import BasicAerJob
-from .exceptions import BasicAerError
+from qiskit.providers import BackendV1 as Backend
+from qiskit.providers.basicaer import BasicAerJob
+from qiskit.providers.options import Options
+from .exceptions import DmError
 from .basicaertools import *
 
 logger = logging.getLogger(__name__)
 
 
-class DmSimulatorPy(BaseBackend):
+class DmSimulatorPy(Backend):
     """Python implementation of a Density Matrix simulator.
     The density matrix is expressed in the orthogonal Pauli basis as
     rho = sum_{ij...} a_{ij...} sigma_i x sigma_j x ...
@@ -312,7 +313,7 @@ class DmSimulatorPy(BaseBackend):
                 for i in range(self._number_of_qubits-1):
                     self._densitymatrix = np.kron([1,0,0,tf], self._densitymatrix)
             else:
-                raise BasicAerError('_custom_densitymatrix value is invalid')
+                raise DmError('_custom_densitymatrix value is invalid')
             # Normalize the density matrix
             self._densitymatrix *= 0.5**(self._number_of_qubits)
 
@@ -342,7 +343,7 @@ class DmSimulatorPy(BaseBackend):
                 except FileNotFoundError:
                     print('Stored Coefficient File does not exist')
             else:
-                raise BasicAerError('_custom_densitymatrix value is invalid')
+                raise DmError('_custom_densitymatrix value is invalid')
 
        # Reshape to rank-N tensor
         self._densitymatrix = np.reshape(self._densitymatrix,
@@ -1311,3 +1312,7 @@ class DmSimulatorPy(BaseBackend):
                         print(name, "   qubit", qubit)
                     else:
                         print(name, "   qubit", qubit, "    ", param)
+
+    @classmethod
+    def _default_options(cls) -> Options:
+        return Options(**cls.DEFAULT_OPTIONS)
