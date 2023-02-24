@@ -54,7 +54,7 @@ from qiskit.providers import BackendV1 as Backend
 from qiskit.providers.basicaer import BasicAerJob
 from qiskit.providers.options import Options
 from .exceptions import DmError
-from .basicaertools import *
+from .dm_tools import *
 
 logger = logging.getLogger(__name__)
 
