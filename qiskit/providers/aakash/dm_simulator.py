@@ -38,6 +38,7 @@ H. Chaudhary, B. Mahato, L. Priyadarshi, N. Roshan, Utkarsh and A. Patel, arXiv:
 import uuid
 import time
 import logging
+import warnings
 
 from math import log2
 from collections import Counter
@@ -47,6 +48,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 
+from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.util import local_hardware_info
 from qiskit.providers.models import QasmBackendConfiguration
 from qiskit.result import Result
@@ -887,7 +889,7 @@ class DmSimulatorPy(Backend):
                 logger.warning('No measurements in circuit "%s", '
                                'classical register will remain all zeros.', name)
 
-    def run(self, qobj, backend_options=None):
+    def run(self, qobj, **backend_options):
         """Run qobj asynchronously.
 
         Args:
@@ -912,10 +914,30 @@ class DmSimulatorPy(Backend):
                     "initial_densitymatrix": np.array([1, 0, 0, 1j]) / np.sqrt(2),
                 }
         """
-        self._set_options(qobj_config=qobj.config,
+        if isinstance(qobj, (QuantumCircuit, list)):
+            from qiskit.compiler import assemble
+
+            out_options = {}
+            for key in backend_options:
+                if not hasattr(self.options, key):
+                    warnings.warn(
+                        "Option %s is not used by this backend" % key, UserWarning, stacklevel=2
+                    )
+                else:
+                    out_options[key] = backend_options[key]
+            qobj = assemble(qobj, self, **out_options)
+            qobj_options = qobj.config
+        else:
+            warnings.warn(
+                "Using a qobj for run() is deprecated and will be removed in a future release.",
+                PendingDeprecationWarning,
+                stacklevel=2,
+            )
+            qobj_options = qobj.config
+        self._set_options(qobj_config=qobj_options,
                           backend_options=backend_options)
         job_id = str(uuid.uuid4())
-        job = BasicAerJob(self, job_id, self._run_job, qobj)
+        job = BasicAerJob(self, job_id, self._run_job(job_id, qobj))
         job.submit()
         return job
 
@@ -944,7 +966,7 @@ class DmSimulatorPy(Backend):
                   'status': 'COMPLETED',
                   'success': True,
                   'time_taken': end-start,
-                  'header': qobj.header.as_dict()}
+                  'header': qobj.header.to_dict()}
 
         return result
 
@@ -1194,7 +1216,7 @@ class DmSimulatorPy(Backend):
                 'success': True,
                 'processing_time_taken': -start_processing+end_processing,
                 'running_time_taken': -start_runtime+end_runtime,
-                'header': experiment.header.as_dict()}
+                'header': experiment.header.to_dict()}
 
     def _compute_densitymatrix(self, dmpauli):
         '''

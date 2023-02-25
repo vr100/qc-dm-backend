@@ -1,8 +1,12 @@
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import BasicAer, execute
-backend1 = BasicAer.get_backend('dm_simulator')
-backend2 = BasicAer.get_backend('qasm_simulator')
+from qiskit import execute
+from qiskit.providers.aakash import AAKASH_DM
+from utils import compare
+
+backend1 = AAKASH_DM.get_backend('dm_simulator')
+backend2 = AAKASH_DM.get_backend('qasm_simulator')
+backend2.SHOW_FINAL_STATE = True
 options = {}
 
 q = QuantumRegister(3, 'q')
@@ -46,8 +50,13 @@ circ.measure(q[2], c[1])
 
 circuits = [circ]
 job = execute(circuits, backend1, **options)
-result = job.result()
-print(result)
+aakash_result = job.result()
+print(aakash_result)
+
 job = execute(circuits, backend2, **options)
-result = job.result()
-print(result)
+qasm_result = job.result()
+print(qasm_result)
+
+success = compare(aakash_result["results"][0],
+	qasm_result.results[0])
+print(f"Comparing results: {success}")
