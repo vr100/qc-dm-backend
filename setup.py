@@ -26,7 +26,8 @@ setup(
     author_email="vr100@@",
     license="Apache 2.0",
     keywords="qiskit aakash backend",
-    packages=['qiskit.providers.aakash'],
+    packages=['qiskit.providers.aakash',
+        'qiskit.circuit.aakash'],
     install_requires=requirements,
     include_package_data=True,
     python_requires=">=3.9"

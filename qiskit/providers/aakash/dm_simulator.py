@@ -58,6 +58,9 @@ from qiskit.providers.options import Options
 from .exceptions import DmError
 from .dm_tools import *
 
+# import all extension gates
+import qiskit.circuit.aakash
+
 logger = logging.getLogger(__name__)
 
 
