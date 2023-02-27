@@ -132,7 +132,8 @@ class DmSimulatorPy(Backend):
         "bell_depolarization_factor": 1.,
         "decay_factor": 1.,
         "rotation_error": {'rx':[1., 0.], 'ry':[1., 0.], 'rz': [1., 0.]},
-        "tsp_model_error": [1., 0.]
+        "tsp_model_error": [1., 0.],
+        "custom_densitymatrix": None
     }
 
     # Class level variable to return the final state at the end of simulation
