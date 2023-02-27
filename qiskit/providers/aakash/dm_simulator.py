@@ -55,10 +55,11 @@ from qiskit.result import Result
 from qiskit.providers import BackendV1 as Backend
 from qiskit.providers.basicaer import BasicAerJob
 from qiskit.providers.options import Options
+from qiskit.qobj import QasmQobjInstruction
 from .exceptions import DmError
 from .dm_tools import *
 
-# import all extension gates
+# import all extension gates, measure fn
 import qiskit.circuit.aakash
 
 logger = logging.getLogger(__name__)
@@ -133,7 +134,8 @@ class DmSimulatorPy(Backend):
         "decay_factor": 1.,
         "rotation_error": {'rx':[1., 0.], 'ry':[1., 0.], 'rz': [1., 0.]},
         "tsp_model_error": [1., 0.],
-        "custom_densitymatrix": None
+        "custom_densitymatrix": None,
+        "show_partition": False
     }
 
     # Class level variable to return the final state at the end of simulation
@@ -918,6 +920,8 @@ class DmSimulatorPy(Backend):
                     "initial_densitymatrix": np.array([1, 0, 0, 1j]) / np.sqrt(2),
                 }
         """
+        import qiskit.circuit.aakash
+
         if isinstance(qobj, (QuantumCircuit, list)):
             from qiskit.compiler import assemble
 
@@ -1030,9 +1034,12 @@ class DmSimulatorPy(Backend):
         start_runtime = time.time()
 
         for clock in range(levels):
-            for operation in partitioned_instructions[clock]:
+            operations = partitioned_instructions[clock]
+            if isinstance(operations, QasmQobjInstruction):
+                operations = [operations]
+            for operation in operations:
                 if operation.name == 'measure':
-                    basis = str(getattr(partitioned_instructions[clock][0],'params',['Z'])[0])
+                    basis = str(getattr(operations[0],'params',['Z'])[0])
                     params = getattr(operation,'params',['Z'])
                     if str(params[0]) in ['X','Y','Z','N']:
                         if str(params[0]) == basis:
@@ -1044,7 +1051,7 @@ class DmSimulatorPy(Backend):
                         part_measure = False
                         continue
 
-            for operation in partitioned_instructions[clock]:
+            for operation in operations:
                 conditional = getattr(operation, 'conditional', None)
                 if isinstance(conditional, int):
                     conditional_bit_set = (self._classical_register >> conditional) & 1
@@ -1090,7 +1097,7 @@ class DmSimulatorPy(Backend):
                     exp_measure = False
                     ensm_measure = False
 
-                    len_pi = len(partitioned_instructions[clock])
+                    len_pi = len(operations)
 
                     if str(params[0]) == 'Ensemble':
                         ensm_measure = True
@@ -1124,7 +1131,7 @@ class DmSimulatorPy(Backend):
                         else:
                             self._add_qasm_measure_Z(
                                 qubit,cmembit,cregbit,self._error_params['measurement'])
-                        partitioned_instructions[clock].remove(operation)
+                        operations.remove(operation)
 
                     elif part_measure:
                         qubit_mes_list = [x.qubits[0] for x in partitioned_instructions[clock]]
@@ -1315,6 +1322,8 @@ class DmSimulatorPy(Backend):
         for current in range(len(partition)):
             print("\nPartition ", current)
             current_partition = partition[current]
+            if isinstance(current_partition, QasmQobjInstruction):
+                current_partition = [current_partition]
             for instruction in range(len(current_partition)):
                 inst = current_partition[instruction]
                 name, qubit = inst.name, inst.qubits

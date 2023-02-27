@@ -1,4 +1,4 @@
-from qiskit.circuit.library import CU1Gate
+from qiskit.circuit.library import CU1Gate, U1Gate
 from qiskit import QuantumCircuit
 from qiskit.circuit.parameterexpression import ParameterValueType
 from qiskit.circuit import InstructionSet
@@ -38,5 +38,26 @@ def cu1(
         [],
     )
 
+def u1(
+    self,
+    theta: ParameterValueType,
+    qubit: QubitSpecifier,
+) -> InstructionSet:
+    r"""Apply :class:`~qiskit.circuit.library.UGate`.
+
+    For the full matrix form of this gate, see the underlying gate documentation.
+
+    Args:
+        theta: The :math:`\lambda` rotation angle of the gate.
+        qubit: The qubit(s) to apply the gate to.
+
+    Returns:
+        A handle to the instructions created.
+    """
+    from qiskit.circuit.library import UGate
+
+    return self.append(U1Gate(theta), [qubit], [])
+
 QuantumCircuit.cu1 = cu1
+QuantumCircuit.u1 = u1
 
