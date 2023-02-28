@@ -54,7 +54,7 @@ def u1(
     Returns:
         A handle to the instructions created.
     """
-    from qiskit.circuit.library import UGate
+    from qiskit.circuit.library import U1Gate
 
     return self.append(U1Gate(theta), [qubit], [])
 

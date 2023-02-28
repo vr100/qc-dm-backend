@@ -18,9 +18,17 @@ Quantum measurement in the computational basis.
 from qiskit.circuit.instruction import Instruction
 from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.exceptions import QiskitError
+from qiskit.circuit.measure import Measure as SuperMeasure
 
-
-class Measure(Instruction):
+# Using the original measure class as super class
+# instead of instruction class, so that any code using
+# instance of the original measure class applies to
+# this class as well
+# Hierarchy
+# qiskit.circuit.instruction.Instruction
+#    -> qiskit.circuit.measure.Measure
+#        --> qiskit.circuit.aakash.measure.Measure
+class Measure(SuperMeasure):
     """ Quantum measurement in the provided basis.
         Default being computational basis.
     """
@@ -28,36 +36,36 @@ class Measure(Instruction):
     def __init__(self, basis=None, add_param=None):
         """Create new measurement instruction."""
         avail_basis = ['I', 'X', 'Y', 'Z', 'N', 'Bell', 'Ensemble', 'Expect']
-        
+        grand_super = super(SuperMeasure, self)
         if basis == 'N':
             if add_param is not None:
-                super().__init__("measure", 1, 1, [basis, add_param])
+                grand_super.__init__("measure", 1, 1, [basis, add_param])
             else:
                 raise QiskitError('Direction should be provided with this measurement basis.')
         elif basis == 'Bell':
             if add_param is not None:
-                super().__init__("measure", 1, 1, [basis, add_param])
+                grand_super.__init__("measure", 1, 1, [basis, add_param])
             else:
                 raise QiskitError('Bell measurement should be provided with two qubit locations')
         elif basis=='Ensemble':
             if add_param is not None:
-                super().__init__("measure", 1, 1, [basis, add_param])
+                grand_super.__init__("measure", 1, 1, [basis, add_param])
             else:
-                super().__init__("measure", 1, 1, [basis, 'Z'])
+                grand_super.__init__("measure", 1, 1, [basis, 'Z'])
         elif basis=='Expect':
             if add_param is not None:
-                super().__init__("measure", 1, 1, [basis, add_param])
+                grand_super.__init__("measure", 1, 1, [basis, add_param])
             else:
                 raise QiskitError('Expectation measurement should be provided with string of Pauli operators')
         elif basis is not None and add_param is None:
             if not all([x in avail_basis for x in basis[0]]):
                 raise QiskitError('Invalid basis provided.')
             else:
-                super().__init__("measure", 1, 1, [basis[0]])
+                grand_super.__init__("measure", 1, 1, [basis[0]])
         elif basis != 'N' and add_param is not None:
             raise QiskitError('Direction cannot be provided with this measurement basis.')
         else:
-            super().__init__("measure", 1, 1, [])
+            grand_super.__init__("measure", 1, 1, [])
 
     def broadcast_arguments(self, qargs, cargs):
         qarg = qargs[0]
