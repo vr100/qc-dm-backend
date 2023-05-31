@@ -5,7 +5,7 @@ import os
 from setuptools import setup
 
 requirements = [
-    "qiskit-terra~=0.23.0",
+    "qiskit-terra~=0.24.0",
     "matplotlib>=3.7"
 ]
 
