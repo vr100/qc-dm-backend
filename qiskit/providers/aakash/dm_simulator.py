@@ -86,7 +86,7 @@ class DmSimulatorPy(Backend):
         'conditional': True,
         'open_pulse': False,
         'memory': True,
-        'max_shots': 1,
+        'max_shots': 0,
         'coupling_map': None,
         'description': 'A python simulator for qasm experiments',
         'basis_gates': ['u1', 'u2', 'u3', 'cx', 'id', 'unitary'],
@@ -135,7 +135,9 @@ class DmSimulatorPy(Backend):
         "rotation_error": {'rx':[1., 0.], 'ry':[1., 0.], 'rz': [1., 0.]},
         "tsp_model_error": [1., 0.],
         "custom_densitymatrix": None,
-        "show_partition": False
+        "show_partition": False,
+        "shots": 1024,
+        "memory": True
     }
 
     # Class level variable to return the final state at the end of simulation
@@ -149,14 +151,16 @@ class DmSimulatorPy(Backend):
     FILE_EXIST = False
     MERGE = True
 
-    def __init__(self, configuration=None, provider=None):
+    def __init__(self, configuration=None, provider=None, **fields):
 
         super().__init__(configuration=(
             configuration or QasmBackendConfiguration.from_dict(self.DEFAULT_CONFIGURATION)),
-                         provider=provider)
+                         provider=provider, ** fields)
 
         # Define attributes in __init__.
         self._classical_memory = 0
+        self._memory = True
+        self._shots = 1000
         self._classical_register = 0
         self._densitymatrix = 0
         self._probability_of_zero = 0.0
@@ -205,6 +209,11 @@ class DmSimulatorPy(Backend):
             self._initial_densitymatrix = np.array(backend_options['initial_densitymatrix'], dtype=float)
         elif hasattr(qobj_config, 'initial_densitymatrix'):
             self._initial_densitymatrix = np.array(qobj_config.initial_densitymatrix, dtype=float)
+
+        if "shots" in backend_options:
+            self._shots = backend_options["shots"]
+        elif hasattr(qobj_config, "shots"):
+            self._shots = qobj_config.shots
 
         if 'custom_densitymatrix' in backend_options:
             self._custom_densitymatrix = backend_options['custom_densitymatrix']
@@ -978,41 +987,9 @@ class DmSimulatorPy(Backend):
 
         return result
 
-    def run_experiment(self, experiment):
-        """Run an experiment (circuit) and return a single experiment result.
-
-        Args:
-            experiment (QobjExperiment): experiment from qobj experiments list
-
-        Returns:
-             dict: A result dictionary which looks something like::
-
-                {
-                "name": name of this experiment (obtained from qobj.experiment header)
-                "seed": random seed used for simulation
-                "shots": number of shots used in the simulation
-                "data":
-                    {
-                    "counts": {'0x9: 5, ...},
-                    "memory": ['0x9', '0xF', '0x1D', ..., '0x9']
-                    },
-                "status": status string for the simulation
-                "success": boolean
-                "time_taken": simulation time of this single experiment
-                }
-        Raises:
-            BasicAerError: if an error occurred.
-        """
-        start_processing = time.time()
-        self._number_of_qubits = experiment.config.n_qubits
-        self._number_of_cmembits = experiment.config.memory_slots
+    def run_per_shot(self, data, memory,
+        levels, partitioned_instructions):
         self._densitymatrix = 0
-        self._classical_memory = 0
-        self._classical_register = 0
-
-        # Add data
-        data = {}
-
         self._initialize_densitymatrix()
         # Validate the dimension of initial densitymatrix if set
         self._validate_initial_densitymatrix()
@@ -1021,17 +998,6 @@ class DmSimulatorPy(Backend):
         # Initialize classical memory to all 0
         self._classical_memory = 0
         self._classical_register = 0
-        #print("MERGING U1 and U3 GATES\n")
-        experiment.instructions = single_gate_merge(experiment.instructions,
-                                                    self._number_of_qubits,self.MERGE)
-        partitioned_instructions, levels = partition(experiment.instructions,
-                                                self._number_of_qubits)
-
-        if self.SHOW_PARTITION:
-            self._describe_partition(partitioned_instructions)
-
-        end_processing = time.time()
-        start_runtime = time.time()
 
         for clock in range(levels):
             operations = partitioned_instructions[clock]
@@ -1051,6 +1017,7 @@ class DmSimulatorPy(Backend):
                         part_measure = False
                         continue
 
+            max_str = None
             for operation in operations:
                 conditional = getattr(operation, 'conditional', None)
                 if isinstance(conditional, int):
@@ -1131,7 +1098,11 @@ class DmSimulatorPy(Backend):
                         else:
                             self._add_qasm_measure_Z(
                                 qubit,cmembit,cregbit,self._error_params['measurement'])
-                        operations.remove(operation)
+
+                        # commenting out the below line of code (for now)
+                        # as we are trying to remove item
+                        # in the middle of iterating a collection
+                        # operations.remove(operation)
 
                     elif part_measure:
                         qubit_mes_list = [x.qubits[0] for x in partitioned_instructions[clock]]
@@ -1210,6 +1181,70 @@ class DmSimulatorPy(Backend):
                         g = self._error_params['memory']['amplitude_decay']
                     )
 
+        if max_str is None:
+            memory.append("NA")
+        else:
+            memory.append(max_str)
+
+
+    def run_experiment(self, experiment):
+        """Run an experiment (circuit) and return a single experiment result.
+
+        Args:
+            experiment (QobjExperiment): experiment from qobj experiments list
+
+        Returns:
+             dict: A result dictionary which looks something like::
+
+                {
+                "name": name of this experiment (obtained from qobj.experiment header)
+                "seed": random seed used for simulation
+                "shots": number of shots used in the simulation
+                "data":
+                    {
+                    "counts": {'0x9: 5, ...},
+                    "memory": ['0x9', '0xF', '0x1D', ..., '0x9']
+                    },
+                "status": status string for the simulation
+                "success": boolean
+                "time_taken": simulation time of this single experiment
+                }
+        Raises:
+            BasicAerError: if an error occurred.
+        """
+        start_processing = time.time()
+        self._number_of_qubits = experiment.config.n_qubits
+        self._number_of_cmembits = experiment.config.memory_slots
+        self._densitymatrix = 0
+        self._classical_memory = 0
+        self._classical_register = 0
+
+        #print("MERGING U1 and U3 GATES\n")
+        experiment.instructions = single_gate_merge(experiment.instructions,
+                                                        self._number_of_qubits,self.MERGE)
+        partitioned_instructions, levels = partition(experiment.instructions,
+                                                    self._number_of_qubits)
+
+        if self.SHOW_PARTITION:
+            self._describe_partition(partitioned_instructions)
+
+        end_processing = time.time()
+        start_runtime = time.time()
+
+        # Add data
+        data = {}
+        memory = []
+
+        for _ in range(self._shots):
+            self.run_per_shot(data, memory,
+                levels, partitioned_instructions)
+
+        # Add data
+        data["counts"] = dict(Counter(memory))
+        # Optionally add memory list
+        if self._memory:
+            data["memory"] = memory
+
         if self.SHOW_FINAL_STATE:
             if self._get_den_mat:
                 data['coeffmatrix'], data['densitymatrix'] = self._get_densitymatrix()
@@ -1222,6 +1257,7 @@ class DmSimulatorPy(Backend):
 
         return {'name': experiment.header.name,
                 'number_of_clock_cycles': levels,
+                "shots": self._shots,
                 'data': data,
                 'status': 'DONE',
                 'success': True,

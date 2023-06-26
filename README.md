@@ -18,6 +18,14 @@ python3 setup.py bdist_wheel
 python3 -m pip install dist/qc_dm_backend-0.1-py3-none-any.whl
 ```
 
+## rebuild and install same version
+
+```bash
+rm -rf dist build qc_dm_backend.egg-info
+python3 setup.py bdist_wheel
+python3 -m pip install dist/qc_dm_backend-0.1-py3-none-any.whl --force-reinstall --no-deps
+```
+
 ## test circuits
 
 ```bash
