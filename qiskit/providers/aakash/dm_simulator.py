@@ -49,7 +49,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 
 from qiskit.circuit.quantumcircuit import QuantumCircuit
-from qiskit.util import local_hardware_info
+from qiskit.utils import local_hardware_info
 from qiskit.providers.models import QasmBackendConfiguration
 from qiskit.result import Result
 from qiskit.providers import BackendV1 as Backend
@@ -1174,17 +1174,17 @@ class DmSimulatorPy(Backend):
                     err_msg = '{0} encountered unrecognized operation "{1}"'
                     raise BasicAerError(err_msg.format(backend, operation.name))
 
-                # Add Memory errors at the end of each clock cycle
+            # Add Memory errors at the end of each clock cycle
             self._add_decoherence_and_amp_decay(clock,
                         f = self._error_params['memory']['decoherence'],
                         p = self._error_params['memory']['thermalization'],
                         g = self._error_params['memory']['amplitude_decay']
                     )
 
-        if max_str is None:
-            memory.append("NA")
-        else:
-            memory.append(max_str)
+            if max_str is None:
+                memory.append("NA")
+            else:
+                memory.append(max_str)
 
 
     def run_experiment(self, experiment):
