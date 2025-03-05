@@ -11,10 +11,16 @@ conda create -n aakash-dm python=3
 conda activate aakash-dm
 ```
 
+## install python build tool
+
+```bash
+python3 -m pip install build
+```
+
 ## build and install
 
 ```bash
-python3 setup.py bdist_wheel
+python3 -m build
 python3 -m pip install dist/qc_dm_backend-0.1-py3-none-any.whl
 ```
 
@@ -22,7 +28,7 @@ python3 -m pip install dist/qc_dm_backend-0.1-py3-none-any.whl
 
 ```bash
 rm -rf dist build qc_dm_backend.egg-info
-python3 setup.py bdist_wheel
+python3 -m build
 python3 -m pip install dist/qc_dm_backend-0.1-py3-none-any.whl --force-reinstall --no-deps
 ```
 

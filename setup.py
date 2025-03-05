@@ -5,8 +5,10 @@ import os
 from setuptools import setup
 
 requirements = [
-    "qiskit-terra~=0.45.0",
-    "matplotlib>=3.7"
+    "qiskit~=1.4.0",
+    "matplotlib>=3.7",
+    "scipy~=1.0",
+    "sympy~=1.0"
 ]
 
 readme_path = os.path.join(os.path.abspath(

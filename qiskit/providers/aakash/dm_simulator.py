@@ -28,7 +28,7 @@ The simulator is run using
 
     DmSimulatorPy().run(qobj)
 
-Here the input is a Qobj object and the output is a BasicAerJob object,
+Here the input is a Qobj object and the output is a BasicProviderJob object,
 which can later be queried for the Result object.
 
 This is a derivative work of the Qiskit project. If you use it, please acknowledge
@@ -49,11 +49,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 
 from qiskit.circuit.quantumcircuit import QuantumCircuit
-from qiskit.utils import local_hardware_info
 from qiskit.providers.models import QasmBackendConfiguration
 from qiskit.result import Result
 from qiskit.providers import BackendV1 as Backend
-from qiskit.providers.basicaer import BasicAerJob
+from qiskit.providers.basic_provider import BasicProviderJob
 from qiskit.providers.options import Options
 from qiskit.qobj import QasmQobjInstruction
 from .exceptions import DmError
@@ -74,7 +73,7 @@ class DmSimulatorPy(Backend):
     The default shape for the array a_{ij...} is n*[4].
     """
 
-    MAX_QUBITS_MEMORY = int(log2(local_hardware_info()['memory'] * (1024 ** 3) / 16))
+    MAX_QUBITS_MEMORY = 32
 
     DEFAULT_CONFIGURATION = {
         'backend_name': 'dm_simulator',
@@ -89,7 +88,10 @@ class DmSimulatorPy(Backend):
         'max_shots': 0,
         'coupling_map': None,
         'description': 'A python simulator for qasm experiments',
-        'basis_gates': ['u1', 'u2', 'u3', 'cx', 'id', 'unitary'],
+        'basis_gates': [
+          'cx', 'unitary',
+          *SINGLE_QUBIT_GATES_LIST
+        ],
         'gates': [
             {
                 'name': 'u1',
@@ -395,6 +397,8 @@ class DmSimulatorPy(Backend):
         self._densitymatrix = np.reshape(self._densitymatrix, (lt, mt, rt))
 
         for idx in gate: # For Rotations in the Decomposed Gate list
+            if idx[0] == "ph":
+                continue
             self._densitymatrix = rot_gate_dm_matrix(
                 idx[0], idx[1], self._error_params['one_qubit_gates'][idx[0]], self._densitymatrix, qubit, self._number_of_qubits)
 
@@ -912,7 +916,7 @@ class DmSimulatorPy(Backend):
             backend_options (dict): backend options
 
         Returns:
-            BasicAerJob: derived from BaseJob
+            BasicProviderJob: derived from BaseJob
 
         Additional Information:
             backend_options: Is a dict of options for the backend. It may contain
@@ -954,7 +958,7 @@ class DmSimulatorPy(Backend):
         self._set_options(qobj_config=qobj_options,
                           backend_options=backend_options)
         job_id = str(uuid.uuid4())
-        job = BasicAerJob(self, job_id, self._run_job(job_id, qobj))
+        job = BasicProviderJob(self, job_id, self._run_job(job_id, qobj))
         job.submit()
         return job
 
@@ -1034,7 +1038,7 @@ class DmSimulatorPy(Backend):
                         if value != int(operation.conditional.val, 16):
                             continue
 
-                if operation.name in ('u1','u3'):
+                if operation.name in SINGLE_QUBIT_GATES_LIST:
                     params = getattr(operation, 'params', None)
                     gate = single_gate_dm_matrix(operation.name, params)
                     qubit = operation.qubits[0]
@@ -1387,3 +1391,7 @@ class DmSimulatorPy(Backend):
     @classmethod
     def _default_options(cls) -> Options:
         return Options(**cls.DEFAULT_OPTIONS)
+
+    @classmethod
+    def name(cls) -> str:
+        return cls.DEFAULT_CONFIGURATION["backend_name"]

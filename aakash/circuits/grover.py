@@ -1,11 +1,12 @@
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import execute
 from qiskit.providers.aakash import AAKASH_DM
-from utils import compare
+from utils import run_and_compare_before_measure, run_and_compare_after_measure
+from qiskit_aer import StatevectorSimulator
 
-backend1 = AAKASH_DM.get_backend('dm_simulator')
-backend2 = AAKASH_DM.get_backend('qasm_simulator')
+backend1 = AAKASH_DM.get_backend('dm_simulator',
+	filters=lambda x: x.name == "dm_simulator")
+backend2 = StatevectorSimulator()
 backend2.SHOW_FINAL_STATE = True
 options = {}
 
@@ -44,19 +45,18 @@ circ.x(q[1])
 circ.x(q[2])
 circ.h(q[1])
 circ.h(q[2])
-circ.measure(q[1], c[0])
-circ.measure(q[2], c[1])
 
+before_success = run_and_compare_before_measure(circ, backend1, backend2)
 
-circuits = [circ]
-job = execute(circuits, backend1, **options)
-aakash_result = job.result()
-print(aakash_result)
+measure_circ = circ.copy()
+measure_circ.measure(q[1], c[0])
+measure_circ.measure(q[2], c[1])
 
-job = execute(circuits, backend2, **options)
-qasm_result = job.result()
-print(qasm_result)
+after_success = run_and_compare_after_measure(circ,
+	measure_circ, backend1, backend2)
 
-success = compare(aakash_result["results"][0],
-	qasm_result.results[0])
-print(f"Comparing results: {success}")
+print()
+print(f"Before measure comparison result: {before_success}")
+print(f"After measure comparing results: {after_success}")
+print()
+

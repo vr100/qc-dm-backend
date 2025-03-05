@@ -20,7 +20,20 @@ from string import ascii_uppercase, ascii_lowercase
 import numpy as np
 from copy import deepcopy
 from qiskit.exceptions import QiskitError
-import itertools   
+import itertools
+from qiskit.providers.basic_provider.basic_provider_tools \
+  import SINGLE_QUBIT_GATES, single_gate_matrix
+from .decompose_tools import get_gates_for_unitary
+
+SINGLE_QUBIT_GATES_LIST = (list)(SINGLE_QUBIT_GATES.keys())
+
+def decompose_gates(unitary):
+    gates = get_gates_for_unitary(unitary)
+    compatible_gates_list = []
+    for g in gates:
+        param = None if len(g["params"]) == 0 else g["params"][0]
+        compatible_gates_list.append([g["oper"], param])
+    return compatible_gates_list
 
 def single_gate_dm_matrix(gate, params=None):
     """Get the rotation matrix for a single qubit in density matrix formalism.
@@ -31,19 +44,13 @@ def single_gate_dm_matrix(gate, params=None):
     Returns:
         array: Decomposition in terms of 'ry', 'rz' with their angles. 
     """
-    decomp_gate = []
-    param = list(map(float, params))
 
-    if gate in ('U', 'u3'):
-        decomp_gate.append(['rz', param[2]])
-        decomp_gate.append(['ry', param[0]])
-        decomp_gate.append(['rz', param[1]])
-    elif gate == 'u1':
-        decomp_gate.append(['rz', param[0]])
+    if gate in SINGLE_QUBIT_GATES_LIST:
+        gate_matrix = single_gate_matrix(gate, params)
+        decomp_gates = decompose_gates(gate_matrix)
+        return decomp_gates
     else:
         raise QiskitError('Gate is not among the valid types: %s' % gate)
-
-    return decomp_gate
 
 
 def rot_gate_dm_matrix(gate, param, err_param, state, q, num_qubits):
@@ -239,6 +246,8 @@ def single_gate_merge(inst, num_qubits, merge_flag=True):
                 single_gt[op.qubits[0]].append(opx)
             elif opx[0].name in ['id', 'u0']:
                 continue
+            elif opx[0].name in SINGLE_QUBIT_GATES_LIST:
+                inst_merged.append(opx[0])
             else:
                 raise QiskitError('Encountered unrecognized instruction: %s' % op)
 
@@ -349,7 +358,7 @@ def cx_gate_dm_matrix(state, q_1, q_2, err_param, num_qubits):
 
 def is_single(gate):
     # Checks if gate is single
-    return True if gate.name in ['u3', 'u1'] else False
+    return True if gate.name in SINGLE_QUBIT_GATES_LIST else False
 
 def is_cx(gate):
     # Checks if gate is CX
