@@ -1396,12 +1396,12 @@ class DmSimulatorPy(Backend):
                 if name == 'u3':
                     param = [round(x, 6) for x in inst.params]
                     print("U3", "   qubit", qubit, "    ", param)
-                if name == 'u1':
+                elif name == 'u1':
                     param = [round(x, 6) for x in inst.params]
                     print("U1", "   qubit", qubit, "    ", param)
                 elif name == 'cx':
                     print("C-NOT", "   qubit", qubit)
-                if name == 'measure':
+                elif name == 'measure':
                     parameter = getattr(inst,'params',None)
                     if parameter is None:
                         setattr(inst,'params',['Z'])
@@ -1413,6 +1413,11 @@ class DmSimulatorPy(Backend):
                         print(name, "   qubit", qubit)
                     else:
                         print(name, "   qubit", qubit, "    ", param)
+                elif name in SINGLE_QUBIT_GATES_LIST or \
+                    name in TWO_QUBIT_GATES_LIST:
+                    param = [round(x, 6) for x in inst.params] \
+                        if hasattr(inst, "params") else None
+                    print(f"{name}    qubit {qubit}    {param}")
 
     @classmethod
     def _default_options(cls) -> Options:

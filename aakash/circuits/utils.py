@@ -25,7 +25,7 @@ def compare_dm(actual_result, expected_result):
         np.allclose(actual_dm.imag, expected_dm.imag)
 
 def run_and_compare_with_measure(circ, measure_circ,
-    backend_1, backend_2, shots=100):
+    measure_bits, backend_1, backend_2, shots=100):
     job = backend_1.run(measure_circ, shots=shots)
     actual_result = job.result()
     actual_prob = (list)(actual_result["results"][0]["data"]["partial_probability"].values())
@@ -33,7 +33,7 @@ def run_and_compare_with_measure(circ, measure_circ,
     job = backend_2.run(circ)
     expected_result = job.result()
     expected_sv = expected_result.results[0].data.statevector
-    expected_prob = np.array(expected_sv.probabilities(qargs=[2,1]))
+    expected_prob = np.array(expected_sv.probabilities(qargs=measure_bits))
     return np.allclose(actual_prob, expected_prob)
 
 def compare(aakash_result, qasm_result):

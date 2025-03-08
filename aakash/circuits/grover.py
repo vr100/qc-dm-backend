@@ -53,7 +53,7 @@ measure_circ.measure(q[1], c[0])
 measure_circ.measure(q[2], c[1])
 
 after_success = run_and_compare_with_measure(circ,
-	measure_circ, backend1, backend2)
+	measure_circ, [2,1], backend1, backend2)
 
 print()
 print(f"Before measure comparison result: {before_success}")

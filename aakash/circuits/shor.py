@@ -1,11 +1,13 @@
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import execute
 from qiskit.providers.aakash import AAKASH_DM
-from utils import compare
+from utils import run_and_compare_without_measure, \
+    run_and_compare_with_measure
+from qiskit_aer import StatevectorSimulator
 
-backend1 = AAKASH_DM.get_backend('dm_simulator')
-backend2 = AAKASH_DM.get_backend('qasm_simulator')
+backend1 = AAKASH_DM.get_backend('dm_simulator',
+    filters=lambda x: x.name == "dm_simulator")
+backend2 = StatevectorSimulator()
 backend2.SHOW_FINAL_STATE = True
 options = {}
 
@@ -30,42 +32,17 @@ circ.cu1(generator(3), q[1], q[2])
 circ.cu1(generator(2), q[0], q[2])
 circ.h(q[2])
 
-print()
-print("## Before measurement ##")
-print()
 
-circuits = [circ]
-job = execute(circuits, backend1, **options)
-aakash_result_before = job.result()
-print(aakash_result_before)
+before_measure = run_and_compare_without_measure(circ,
+    backend1, backend2)
 
-job = execute(circuits, backend2, **options)
-qasm_result_before = job.result()
-print(qasm_result_before)
+measure_circ = circ.copy()
+measure_circ.measure(q[0],c[0])
+measure_circ.measure(q[1],c[1])
+measure_circ.measure(q[2],c[2])
 
+after_measure = run_and_compare_with_measure(circ, measure_circ,
+    [2,1,0], backend1, backend2)
 
-circ.measure(q[0],c[0])
-circ.measure(q[1],c[1])
-circ.measure(q[2],c[2])
-
-print()
-print("## After measurement ##")
-print()
-
-circuits = [circ]
-job = execute(circuits, backend1, **options)
-aakash_result = job.result()
-print(aakash_result)
-
-job = execute(circuits, backend2, **options)
-qasm_result = job.result()
-print(qasm_result)
-
-print()
-success = compare(aakash_result_before["results"][0],
-    qasm_result_before.results[0])
-print(f"Comparing results before measurement: {success}")
-
-success = compare(aakash_result["results"][0],
-    qasm_result.results[0])
-print(f"Comparing results after measurement: {success}")
+print(f"Comparing results before measurement: {before_measure}")
+print(f"Comparing results after measurement: {after_measure}")
