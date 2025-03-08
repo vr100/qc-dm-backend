@@ -405,8 +405,8 @@ class DmSimulatorPy(Backend):
         self._densitymatrix = np.reshape(self._densitymatrix,
                                     self._number_of_qubits * [4])
 
-    def _add_unitary_two(self, qubit0, qubit1):
-        """Apply a two-qubit unitary transformation (only cx gate is included).
+    def _add_unitary_cx(self, qubit0, qubit1):
+        """Apply a cx gate unitary
 
         Args:
             qubit0 (int): control qubit
@@ -415,6 +415,26 @@ class DmSimulatorPy(Backend):
 
         self._densitymatrix = cx_gate_dm_matrix(self._densitymatrix,
                                                 qubit0, qubit1, self._error_params['two_qubit_gates'],self._number_of_qubits)
+
+    def _add_unitary_two(self, gate, qubit0, qubit1):
+        """Apply a two-qubit unitary transformation
+        Args:
+            gate (list): the list of gates together with its parameters.
+            qubit0 (int): first qubit
+            qubit1 (int): second qubit
+        """
+        qubits = [qubit0, qubit1]
+
+        for item in gate:
+            gname, param = item[0], item[1]
+            if len(item) == 3:
+                q0 = qubits[item[2]]
+                self._add_unitary_single([[gname, param]], q0)
+            elif gname == "cx" and len(item) == 4:
+                q0, q1 = qubits[item[2]], qubits[item[3]]
+                self._add_unitary_cx(q0, q1)
+            else:
+                raise BasicAerError(f"Unknown gate: {item}")
 
     def _add_decoherence_and_amp_decay(self, level, f, p, g):
         """ Apply decoherence transofrmation and amplitude decay transformation independently
@@ -1047,7 +1067,13 @@ class DmSimulatorPy(Backend):
                 elif operation.name == 'cx':
                     qubit0 = operation.qubits[0]
                     qubit1 = operation.qubits[1]
-                    self._add_unitary_two(qubit0, qubit1)
+                    self._add_unitary_cx(qubit0, qubit1)
+                elif operation.name in TWO_QUBIT_GATES_LIST:
+                    params = getattr(operation, 'params', None)
+                    gate = two_gate_dm_matrix(operation.name, params)
+                    qubit0 = operation.qubits[0]
+                    qubit1 = operation.qubits[1]
+                    self._add_unitary_two(gate, qubit0, qubit1)
                 # Check if reset
                 elif operation.name == 'reset':
                     qubit = operation.qubits[0]

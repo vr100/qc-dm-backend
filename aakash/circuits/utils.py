@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 from qiskit.quantum_info import DensityMatrix
 
-def run_and_compare_before_measure(circ, backend_1, backend_2):
+def run_and_compare_without_measure(circ, backend_1, backend_2):
     job = backend_1.run(circ)
     actual_result = job.result()["results"][0]
     job = backend_2.run(circ)
@@ -24,7 +24,7 @@ def compare_dm(actual_result, expected_result):
     return np.allclose(actual_dm.real, expected_dm.real) and \
         np.allclose(actual_dm.imag, expected_dm.imag)
 
-def run_and_compare_after_measure(circ, measure_circ,
+def run_and_compare_with_measure(circ, measure_circ,
     backend_1, backend_2, shots=100):
     job = backend_1.run(measure_circ, shots=shots)
     actual_result = job.result()

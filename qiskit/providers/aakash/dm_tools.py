@@ -22,10 +22,13 @@ from copy import deepcopy
 from qiskit.exceptions import QiskitError
 import itertools
 from qiskit.providers.basic_provider.basic_provider_tools \
-  import SINGLE_QUBIT_GATES, single_gate_matrix
+  import SINGLE_QUBIT_GATES, single_gate_matrix, \
+  TWO_QUBIT_GATES, TWO_QUBIT_GATES_WITH_PARAMETERS
 from .decompose_tools import get_gates_for_unitary
 
 SINGLE_QUBIT_GATES_LIST = (list)(SINGLE_QUBIT_GATES.keys())
+TWO_QUBIT_GATES_LIST =  (list)(TWO_QUBIT_GATES_WITH_PARAMETERS.keys()) + \
+    (list)(TWO_QUBIT_GATES.keys())
 
 def decompose_gates(unitary):
     gates = get_gates_for_unitary(unitary)
@@ -52,6 +55,34 @@ def single_gate_dm_matrix(gate, params=None):
     else:
         raise QiskitError('Gate is not among the valid types: %s' % gate)
 
+def decompose_gates_multiple(unitary):
+    gates = get_gates_for_unitary(unitary)
+    compatible_gates_list = []
+    for g in gates:
+        param = None if len(g["params"]) == 0 else g["params"][0]
+        compatible_gates_list.append([g["oper"], param, *g["bits"]])
+    return compatible_gates_list
+
+def two_gate_dm_matrix(gate, params=None):
+    """Get the rotation matrix for two qubits in density matrix formalism.
+
+    Args:
+        gate(str): the two qubit gate name
+        params(list): the operation parameters op['params']
+    Returns:
+        array: Decomposition in terms of 'ry', 'rz', 'cx', 'global phase'
+    """
+
+    if gate in TWO_QUBIT_GATES.keys():
+        gate_matrix = TWO_QUBIT_GATES[gate]
+        decomp_gates = decompose_gates_multiple(gate_matrix)
+        return decomp_gates
+    elif gate in TWO_QUBIT_GATES_WITH_PARAMETERS.keys():
+        gate_matrix = TWO_QUBIT_GATES_WITH_PARAMETERS[gate](*params).to_matrix()
+        decomp_gates = decompose_gates_multiple(gate_matrix)
+        return decomp_gates
+    else:
+        raise QiskitError('Gate is not among the valid types: %s' % gate)
 
 def rot_gate_dm_matrix(gate, param, err_param, state, q, num_qubits):
     """   
@@ -248,6 +279,8 @@ def single_gate_merge(inst, num_qubits, merge_flag=True):
                 continue
             elif opx[0].name in SINGLE_QUBIT_GATES_LIST:
                 inst_merged.append(opx[0])
+            elif opx[0].name in TWO_QUBIT_GATES_LIST:
+                inst_merged.append(opx[0])
             else:
                 raise QiskitError('Encountered unrecognized instruction: %s' % op)
 
@@ -360,9 +393,9 @@ def is_single(gate):
     # Checks if gate is single
     return True if gate.name in SINGLE_QUBIT_GATES_LIST else False
 
-def is_cx(gate):
+def is_double(gate):
     # Checks if gate is CX
-    return True if gate.name in ['CX', 'cx'] else False
+    return True if gate.name in TWO_QUBIT_GATES_LIST else False
 
 def is_measure(gate):
     # Checks if gate is measure
@@ -470,7 +503,7 @@ def partition_helper(i_set, num_qubits):
                 i_set.remove(gate)      # Remove from Set
                 i_stack[qubit].pop(0)   # Remove from Stack
             # Check for C-NOT gate
-            elif is_cx(gate):
+            elif is_double(gate):
                 second_qubit = list(
                     set(gate.qubits).difference(set([qubit])))[0]
                 buffer_gate = i_stack[second_qubit][0]

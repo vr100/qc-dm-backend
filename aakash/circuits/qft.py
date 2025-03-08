@@ -1,17 +1,17 @@
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import execute
 from qiskit.providers.aakash import AAKASH_DM
-from utils import compare
+from utils import run_and_compare_without_measure
+from qiskit_aer import StatevectorSimulator
 
-backend1 = AAKASH_DM.get_backend('dm_simulator')
-backend2 = AAKASH_DM.get_backend('qasm_simulator')
+backend1 = AAKASH_DM.get_backend('dm_simulator',
+    filters=lambda x: x.name == "dm_simulator")
+backend2 = StatevectorSimulator()
 backend2.SHOW_FINAL_STATE = True
 options = {}
 
 def generator(k):
     return (np.pi*2)/(2**k)
-
 
 num_of_qubits = 5
 q = QuantumRegister(num_of_qubits, 'q')
@@ -44,15 +44,7 @@ for wire in range (num_of_qubits-1):
 circ.h(q[num_of_qubits-1])
 
 #circ.draw(output='mpl', line_length=120, scale=0.5)
-circuits = [circ]
-job = execute(circuits, backend1, **options)
-aakash_result = job.result()
-print(aakash_result)
 
-job = execute(circuits, backend2, **options)
-qasm_result = job.result()
-print(qasm_result)
+success = run_and_compare_without_measure(circ, backend1, backend2)
 
-success = compare(aakash_result["results"][0],
-    qasm_result.results[0])
 print(f"Comparing results: {success}")
