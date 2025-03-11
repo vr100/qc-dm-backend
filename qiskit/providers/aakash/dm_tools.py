@@ -63,7 +63,7 @@ def decompose_gates_multiple(unitary):
         compatible_gates_list.append([g["oper"], param, *g["bits"]])
     return compatible_gates_list
 
-def two_gate_dm_matrix(gate, params=None):
+def multi_gate_dm_matrix(gate, params=None):
     """Get the rotation matrix for two qubits in density matrix formalism.
 
     Args:
@@ -79,6 +79,10 @@ def two_gate_dm_matrix(gate, params=None):
         return decomp_gates
     elif gate in TWO_QUBIT_GATES_WITH_PARAMETERS.keys():
         gate_matrix = TWO_QUBIT_GATES_WITH_PARAMETERS[gate](*params).to_matrix()
+        decomp_gates = decompose_gates_multiple(gate_matrix)
+        return decomp_gates
+    elif gate == "unitary":
+        gate_matrix = params[0]
         decomp_gates = decompose_gates_multiple(gate_matrix)
         return decomp_gates
     else:
@@ -281,6 +285,8 @@ def single_gate_merge(inst, num_qubits, merge_flag=True):
                 inst_merged.append(opx[0])
             elif opx[0].name in TWO_QUBIT_GATES_LIST:
                 inst_merged.append(opx[0])
+            elif opx[0].name == "unitary":
+                inst_merged.append(opx[0])
             else:
                 raise QiskitError('Encountered unrecognized instruction: %s' % op)
 
@@ -389,6 +395,10 @@ def cx_gate_dm_matrix(state, q_1, q_2, err_param, num_qubits):
 
     return state
 
+def is_unitary(gate):
+    # Checks if gate is unitary
+    return True if gate.name == "unitary" else False
+
 def is_single(gate):
     # Checks if gate is single
     return True if gate.name in SINGLE_QUBIT_GATES_LIST else False
@@ -478,6 +488,7 @@ def partition_helper(i_set, num_qubits):
 
     i_stack, depth = qubit_stack(i_set, num_qubits)
     level, sequence = 0, [[] for _ in range(depth)]
+
     while i_set:
         # Qubits included in the partition
         qubit_included = []
@@ -513,7 +524,7 @@ def partition_helper(i_set, num_qubits):
                     continue
 
                 # Check if C-NOT is top in stacks of both of its indexes.
-                if gate == buffer_gate:
+                if gate is buffer_gate:
                     qubit_included.append(qubit)
                     qubit_included.append(second_qubit)
                     sequence[level].append(gate)
@@ -523,6 +534,26 @@ def partition_helper(i_set, num_qubits):
                 # If not then don't add it.
                 else:
                     continue
+            # Check for unitary gate
+            elif is_unitary(gate):
+                gate_qubits = list(set(gate.qubits))
+                qubit_already_used = (len(set(gate.qubits).intersection(qubit_included)) != 0)
+                if qubit_already_used:
+                    continue
+                on_top_of_stack = True
+                for q in gate_qubits:
+                    ## "is" checks if variables point to same object in memory
+                    ## while "==" checks if objects referred to by the variables are equal
+                    ## Reference: https://stackoverflow.com/questions/132988/is-there-a-difference-between-and-is
+                    on_top_of_stack = (gate is i_stack[q][0])
+                    if not on_top_of_stack:
+                        break
+                if on_top_of_stack:
+                    qubit_included.extend(gate_qubits)
+                    sequence[level].append(gate)
+                    i_set.remove(gate)
+                    for q in gate_qubits:
+                        i_stack[q].pop(0)
 
             elif is_measure(gate): 
 

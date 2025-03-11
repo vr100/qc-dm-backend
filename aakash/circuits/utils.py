@@ -34,6 +34,7 @@ def run_and_compare_with_measure(circ, measure_circ,
     expected_result = job.result()
     expected_sv = expected_result.results[0].data.statevector
     expected_prob = np.array(expected_sv.probabilities(qargs=measure_bits))
+
     return np.allclose(actual_prob, expected_prob)
 
 def compare(aakash_result, qasm_result):

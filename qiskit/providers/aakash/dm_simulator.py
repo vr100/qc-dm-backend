@@ -52,7 +52,7 @@ from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.providers.models import QasmBackendConfiguration
 from qiskit.result import Result
 from qiskit.providers import BackendV1 as Backend
-from qiskit.providers.basic_provider import BasicProviderJob
+from qiskit.providers.basic_provider import BasicProviderJob, BasicProviderError
 from qiskit.providers.options import Options
 from qiskit.qobj import QasmQobjInstruction
 from .exceptions import DmError
@@ -227,7 +227,7 @@ class DmSimulatorPy(Backend):
         # Error for Single Qubit Rotation Gates
         if 'rotation_error' in backend_options:
             if type(backend_options['rotation_error']) != dict or not all(x in ['rx', 'ry', 'rz'] for x in backend_options['rotation_error']) :
-                raise BasicAerError('Error! Incorrect Rotation Error parameters, Expected argument : A dict with rotation gate as key and a list of 2 reals ranging between 0 and 1 both inclusive as their values.')
+                raise BasicProviderError('Error! Incorrect Rotation Error parameters, Expected argument : A dict with rotation gate as key and a list of 2 reals ranging between 0 and 1 both inclusive as their values.')
             else:
                 for gt, vl in backend_options['rotation_error'].items():
                     self._rotation_error.update({gt:vl})
@@ -235,7 +235,7 @@ class DmSimulatorPy(Backend):
         # Error for C-NOT based on Transition Selective Pulse model
         if 'tsp_model_error' in backend_options:
             if type(backend_options['tsp_model_error']) != list or len(backend_options['tsp_model_error']) !=2 or backend_options['tsp_model_error'][0] > 1 or backend_options['tsp_model_error'][1] > 1:
-                raise BasicAerError('Error! Incorrect transition model error parameter, Expected argument : A list of 2 reals ranging between 0 and 1 both inclusive.')
+                raise BasicProviderError('Error! Incorrect transition model error parameter, Expected argument : A list of 2 reals ranging between 0 and 1 both inclusive.')
             else:
                 self._tsp_model_error = backend_options['tsp_model_error']
 
@@ -340,7 +340,7 @@ class DmSimulatorPy(Backend):
             # Binary string is encoded in the self._initial_densitymatrix
             if self._custom_densitymatrix == 'binary_string':
                 if len(self._initial_densitymatrix) != self._number_of_qubits:
-                    raise BasicAerError('Wrong input binary string length')
+                    raise BasicProviderError('Wrong input binary string length')
                 if self._initial_densitymatrix[0] == '0':
                     self._densitymatrix = np.array([1,0,0,1], dtype=float)
                 else:
@@ -358,7 +358,7 @@ class DmSimulatorPy(Backend):
                 try:
                     self._densitymatrix = np.load('stored_density_matrix.npy')
                     if len(self._densitymatrix) != 4**self._number_of_qubits:
-                        raise BasicAerError('Wrong input stored density matrix')
+                        raise BasicProviderError('Wrong input stored density matrix')
                 except FileNotFoundError:
                     print('Stored Coefficient File does not exist')
             else:
@@ -378,10 +378,10 @@ class DmSimulatorPy(Backend):
         length = np.size(self._densitymatrix)
         required_dim = 4 ** self._number_of_qubits
         if length != required_dim:
-            raise BasicAerError('initial densitymatrix is incorrect length: ' + '{} != {}'.formarequired_dim)
+            raise BasicProviderError('initial densitymatrix is incorrect length: ' + '{} != {}'.formarequired_dim)
         self._densitymatrix = np.reshape(self._densitymatrix,4**self._number_of_qubits)
         if self._densitymatrix[0] != 2**(-self._number_of_qubits):
-            raise BasicAerError('Trace of initial densitymatrix is not one: ' + '{} != {}'.format(self._den[0], 1))
+            raise BasicProviderError('Trace of initial densitymatrix is not one: ' + '{} != {}'.format(self._den[0], 1))
         self._densitymatrix = np.reshape(self._densitymatrix,self._number_of_qubits*[4])
 
     def _add_unitary_single(self, gate, qubit):
@@ -416,14 +416,12 @@ class DmSimulatorPy(Backend):
         self._densitymatrix = cx_gate_dm_matrix(self._densitymatrix,
                                                 qubit0, qubit1, self._error_params['two_qubit_gates'],self._number_of_qubits)
 
-    def _add_unitary_two(self, gate, qubit0, qubit1):
-        """Apply a two-qubit unitary transformation
+    def _add_unitary_multi(self, gate, qubits):
+        """Apply a two-qubit or multi qubit unitary transformation
         Args:
             gate (list): the list of gates together with its parameters.
-            qubit0 (int): first qubit
-            qubit1 (int): second qubit
+            qubits (list): list of qubits
         """
-        qubits = [qubit0, qubit1]
 
         for item in gate:
             gname, param = item[0], item[1]
@@ -434,7 +432,7 @@ class DmSimulatorPy(Backend):
                 q0, q1 = qubits[item[2]], qubits[item[3]]
                 self._add_unitary_cx(q0, q1)
             else:
-                raise BasicAerError(f"Unknown gate: {item}")
+                raise BasicProviderError(f"Unknown gate: {item}")
 
     def _add_decoherence_and_amp_decay(self, level, f, p, g):
         """ Apply decoherence transofrmation and amplitude decay transformation independently
@@ -919,7 +917,7 @@ class DmSimulatorPy(Backend):
         n_qubits = qobj.config.n_qubits
         max_qubits = self.configuration().n_qubits
         if n_qubits > max_qubits:
-            raise BasicAerError('Number of qubits {} '.format(n_qubits) +
+            raise BasicProviderError('Number of qubits {} '.format(n_qubits) +
                                 'is greater than maximum ({}) '.format(max_qubits) +
                                 'for "{}".'.format(self.name()))
         for experiment in qobj.experiments:
@@ -1070,10 +1068,12 @@ class DmSimulatorPy(Backend):
                     self._add_unitary_cx(qubit0, qubit1)
                 elif operation.name in TWO_QUBIT_GATES_LIST:
                     params = getattr(operation, 'params', None)
-                    gate = two_gate_dm_matrix(operation.name, params)
-                    qubit0 = operation.qubits[0]
-                    qubit1 = operation.qubits[1]
-                    self._add_unitary_two(gate, qubit0, qubit1)
+                    gate = multi_gate_dm_matrix(operation.name, params)
+                    self._add_unitary_multi(gate, operation.qubits)
+                elif operation.name == "unitary":
+                    params = getattr(operation, 'params', None)
+                    gate = multi_gate_dm_matrix(operation.name, params)
+                    self._add_unitary_multi(gate, operation.qubits)
                 # Check if reset
                 elif operation.name == 'reset':
                     qubit = operation.qubits[0]
@@ -1190,7 +1190,7 @@ class DmSimulatorPy(Backend):
                     elif relation == '>=':
                         outcome = (compared >= 0)
                     else:
-                        raise BasicAerError('Invalid boolean function relation.')
+                        raise BasicProviderError('Invalid boolean function relation.')
                     # Store outcome in register and optionally memory slot
                     regbit = 1 << cregbit
                     self._classical_register = \
@@ -1202,7 +1202,7 @@ class DmSimulatorPy(Backend):
                 else:
                     backend = self.name()
                     err_msg = '{0} encountered unrecognized operation "{1}"'
-                    raise BasicAerError(err_msg.format(backend, operation.name))
+                    raise BasicProviderError(err_msg.format(backend, operation.name))
 
             # Add Memory errors at the end of each clock cycle
             self._add_decoherence_and_amp_decay(clock,
@@ -1240,7 +1240,7 @@ class DmSimulatorPy(Backend):
                 "time_taken": simulation time of this single experiment
                 }
         Raises:
-            BasicAerError: if an error occurred.
+            BasicProviderError: if an error occurred.
         """
         start_processing = time.time()
         self._number_of_qubits = experiment.config.n_qubits
