@@ -1418,6 +1418,9 @@ class DmSimulatorPy(Backend):
                     param = [round(x, 6) for x in inst.params] \
                         if hasattr(inst, "params") else None
                     print(f"{name}    qubit {qubit}    {param}")
+                elif name == 'unitary':
+                    param = inst.params if hasattr(inst, "params") else None
+                    print(f"{name}    qubit {qubit}    {param}")
 
     @classmethod
     def _default_options(cls) -> Options:
