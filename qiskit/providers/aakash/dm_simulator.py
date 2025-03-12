@@ -208,9 +208,9 @@ class DmSimulatorPy(Backend):
         # Check for custom initial density matrix in backend_options first,
         # otherwise take it from config.
         if 'initial_densitymatrix' in backend_options:
-            self._initial_densitymatrix = np.array(backend_options['initial_densitymatrix'], dtype=float)
+            self._initial_densitymatrix = np.array(backend_options['initial_densitymatrix'], dtype=complex)
         elif hasattr(qobj_config, 'initial_densitymatrix'):
-            self._initial_densitymatrix = np.array(qobj_config.initial_densitymatrix, dtype=float)
+            self._initial_densitymatrix = np.array(qobj_config.initial_densitymatrix, dtype=complex)
 
         if "shots" in backend_options:
             self._shots = backend_options["shots"]
@@ -315,20 +315,20 @@ class DmSimulatorPy(Backend):
 
         if self._initial_densitymatrix is None:
             if self._custom_densitymatrix is None:
-                self._densitymatrix = np.array([1,0,0,1], dtype=float)
+                self._densitymatrix = np.array([1,0,0,1], dtype=complex)
                 for i in range(self._number_of_qubits-1):
                     self._densitymatrix = np.kron([1,0,0,1],self._densitymatrix)
             elif self._custom_densitymatrix == 'max_mixed':
-                self._densitymatrix = np.array([1,0,0,0], dtype=float)
+                self._densitymatrix = np.array([1,0,0,0], dtype=complex)
                 for i in range(self._number_of_qubits-1):
                     self._densitymatrix = np.kron([1,0,0,0], self._densitymatrix)
             elif self._custom_densitymatrix == 'uniform_superpos':
-                self._densitymatrix = np.array([1,1,0,0], dtype=float)
+                self._densitymatrix = np.array([1,1,0,0], dtype=complex)
                 for i in range(self._number_of_qubits-1):
                     self._densitymatrix = np.kron([1,1,0,0], self._densitymatrix)
             elif self._custom_densitymatrix == 'thermal_state':
                 tf = 2*self._thermal_factor-1
-                self._densitymatrix = np.array([1,0,0,tf], dtype=float)
+                self._densitymatrix = np.array([1,0,0,tf], dtype=complex)
                 for i in range(self._number_of_qubits-1):
                     self._densitymatrix = np.kron([1,0,0,tf], self._densitymatrix)
             else:
@@ -342,9 +342,9 @@ class DmSimulatorPy(Backend):
                 if len(self._initial_densitymatrix) != self._number_of_qubits:
                     raise BasicProviderError('Wrong input binary string length')
                 if self._initial_densitymatrix[0] == '0':
-                    self._densitymatrix = np.array([1,0,0,1], dtype=float)
+                    self._densitymatrix = np.array([1,0,0,1], dtype=complex)
                 else:
-                    self._densitymatrix = np.array([1,0,0,-1], dtype=float)
+                    self._densitymatrix = np.array([1,0,0,-1], dtype=complex)
                 for idx in self._initial_densitymatrix[1:]:
                     if idx == '0':
                         self._densitymatrix = np.kron([1,0,0,1],self._densitymatrix)
